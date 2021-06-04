@@ -12,7 +12,7 @@ signal.signal(signal.SIGINT, signal_handler)
 
 
 
-pattern_id = re.compile(r' \d+\d*') #pattern to find id
+pattern_id = re.compile(r' \d+,$') #pattern to find id
 pattern_name = re.compile(r'\w+[a-zA-Z]') # pattern to find name
 
 
@@ -87,7 +87,10 @@ class Item:
 
 
 def find_id(x : list) -> str:
-    return re.findall(pattern_id, x)[::-1][0]
+    no_comma = len(re.findall(pattern_id, x)[0])-1
+    return re.findall(pattern_id, x)[0][1:no_comma]
+
+
 
 def top20_margin(topmargins : list = []) -> list:
     """20 items with the highest margin
@@ -99,7 +102,7 @@ def top20_margin(topmargins : list = []) -> list:
         list: [list with dictionaries with the highest margin]
     """
     for items_ids, data in data_ge.items():
-        try:
+        try: #sometimes the data does not exist and returns as null
             topmargins.append({
                 'id' : items_ids,
                 'high' : data['high'], 
@@ -111,7 +114,6 @@ def top20_margin(topmargins : list = []) -> list:
             })
         except:
             continue
-
 
     topmargins.sort(reverse = True, key = lambda x: x['margin'])
     topmargins = topmargins[:21]
