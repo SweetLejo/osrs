@@ -1,6 +1,7 @@
 import requests, json, re, signal, sys, time
 from datetime import datetime
 
+
 headers = {
     'User-Agent': 'learning programming/data management -@Lejo#9386'
 }
@@ -35,13 +36,13 @@ with open('ge1hr.json', 'r') as f:
 if int(time.time()) - data_ge_1hr['timestamp'] > 3000: #suffecient time to update 1hr prices
     data_ge_1hr1 = requests.get('https://prices.runescape.wiki/api/v1/osrs/1h')
     if data_ge_1hr1.status_code == 200:
-        data_ge_1hr = data_ge_1hr1
         with open('ge1hr.json', 'w') as f:
             json.dump(data_ge_1hr.json(), f)
+        data_ge_1hr = data_ge_1hr1.json()
 
 
 data_ge = list(data_ge.json().values())[0] #newest prices formated as a dictionary, removes timestamp and what not
-data_ge_1hr = list(data_ge_1hr.json().values())[0] #pices and volume over last hour
+data_ge_1hr = list(data_ge_1hr.values())[0] #pices and volume over last hour
 
 
 class Item:
@@ -112,6 +113,7 @@ def top20_margin(topmargins : list = []) -> list:
                 'High Price Volume' : data_ge_1hr[items_ids]['highPriceVolume'],
                 'Low Price Volume' : data_ge_1hr[items_ids]['lowPriceVolume']
             })
+
         except:
             continue
 
