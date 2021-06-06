@@ -13,38 +13,6 @@ signal.signal(signal.SIGINT, signal_handler)
 
 
 
-pattern_id = re.compile(r' \d+,$') #pattern to find id
-pattern_name = re.compile(r'\w+[a-zA-Z]') # pattern to find name
-
-
-
-with open('items2.txt', 'r') as f: #names and ids
-    data_items = f.readlines()
-
-
-
-data_ge = requests.get('https://prices.runescape.wiki/api/v1/osrs/latest') #newest prices
-
-if data_ge.status_code != 200: #check if http response is aight
-    print(data_ge.status_code)
-    print('http response was bad')
-    sys.exit(0)
-
-with open('ge1hr.json', 'r') as f:
-    data_ge_1hr = json.load(f)
-
-if int(time.time()) - data_ge_1hr['timestamp'] > 3000: #suffecient time to update 1hr prices
-    data_ge_1hr1 = requests.get('https://prices.runescape.wiki/api/v1/osrs/1h')
-    if data_ge_1hr1.status_code == 200:
-        with open('ge1hr.json', 'w') as f:
-            json.dump(data_ge_1hr.json(), f)
-        data_ge_1hr = data_ge_1hr1.json()
-
-
-data_ge = list(data_ge.json().values())[0] #newest prices formated as a dictionary, removes timestamp and what not
-data_ge_1hr = list(data_ge_1hr.values())[0] #pices and volume over last hour
-
-
 class Item:
     def __init__(self, item_name, item_id, high_price, low_price, margin, high_volume, low_volume, time):
         self.item_name = item_name
@@ -86,6 +54,39 @@ class Item:
         '''
 
 
+pattern_id = re.compile(r' \d+,$') #pattern to find id
+pattern_name = re.compile(r'\w+[a-zA-Z]') # pattern to find name
+
+
+
+with open('items2.txt', 'r') as f: #names and ids
+    data_items = f.readlines()
+
+
+def update_data():
+    data_ge = requests.get('https://prices.runescape.wiki/api/v1/osrs/latest') #newest prices
+
+    if data_ge.status_code != 200: #check if http response is aight
+        print(data_ge.status_code)
+        print('http response was bad')
+        sys.exit(0)
+
+    with open('ge1hr.json', 'r') as f:
+        data_ge_1hr = json.load(f)
+
+    if int(time.time()) - data_ge_1hr['timestamp'] > 3000: #suffecient time to update 1hr prices
+        data_ge_1hr1 = requests.get('https://prices.runescape.wiki/api/v1/osrs/1h')
+        if data_ge_1hr1.status_code == 200:
+            with open('ge1hr.json', 'w') as f:
+                json.dump(data_ge_1hr.json(), f)
+            data_ge_1hr = data_ge_1hr1.json()
+
+
+    data_ge = list(data_ge.json().values())[0] #newest prices formated as a dictionary, removes timestamp and what not
+    data_ge_1hr = list(data_ge_1hr.values())[0] #pices and volume over last hour
+    return data_ge, data_ge_1hr
+
+
 
 def find_id(x : list) -> str:
     no_comma = len(re.findall(pattern_id, x)[0])-1
@@ -93,7 +94,7 @@ def find_id(x : list) -> str:
 
 
 
-def top20_margin(topmargins : list = []) -> list:
+def top20_margin(data_ge : dict, data_ge_1hr : dict) -> list:
     """20 items with the highest margin
 
     Args:
@@ -102,6 +103,7 @@ def top20_margin(topmargins : list = []) -> list:
     Returns:
         list: [list with dictionaries with the highest margin]
     """
+    topmargins = []
     for items_ids, data in data_ge.items():
         try: #sometimes the data does not exist and returns as null
             topmargins.append({
@@ -123,9 +125,10 @@ def top20_margin(topmargins : list = []) -> list:
     return topmargins[:21]
 
 
-def top20Volume(topvolume : list = []) -> list:
+def top20Volume(data_ge : dict, data_ge_1hr : dict) -> list:
     """loops through the items and sorts them based on volume returning an new shorter list
     """ 
+    topvolume = []
     for item_id, data in data_ge_1hr.items():
         try:
             topvolume.append({
@@ -179,6 +182,7 @@ menu = '''
 -----------------
 '''
 def interactive_menu():
+    data_ge, data_ge_1hr = update_data()
     print(menu)
     choice = ''
     while choice != '4':
@@ -186,9 +190,11 @@ def interactive_menu():
         if choice == '0':
             print(menu)
         elif choice == '1':
-            print(match_id(top20Volume()))
+            print(match_id(top20Volume(data_ge, data_ge_1hr)))
         elif choice == '2':
-            print(match_id(top20_margin()))
+            print(match_id(top20_margin(data_ge, data_ge_1hr)))
+        elif choice == '3':
+            data_ge, data_ge_1hr = update_data()
         elif choice == '4':
             print('thanks for coming')
         else:
