@@ -39,29 +39,24 @@ class Item:
         ROI: {self.ROI()}
         item time: {datetime.utcfromtimestamp(self.time).strftime('%Y-%m-%d %H:%M:%S')}
         '''
-    
-    def __str__(self):
-        return f''' 
-        item name: {self.item_name}
-        item id: {self.item_id}
-        item high price: {self.high_price}
-        item low price: {self.low_price}
-        margin: {self.margin}
-        high volume {self.high_volume}
-        low volume {self.low_volume}
-        ROI: {self.ROI()}
-        item time: {datetime.utcfromtimestamp(self.time).strftime('%Y-%m-%d %H:%M:%S')}
-        '''
 
-
-pattern_id = re.compile(r' \d+,$') #pattern to find id
-pattern_name = re.compile(r'\w+[a-zA-Z]') # pattern to find name
+    # def __str__(self):
+    #     return f''' 
+    #     item name: {self.item_name}
+    #     item id: {self.item_id}
+    #     item high price: {self.high_price}
+    #     item low price: {self.low_price}
+    #     margin: {self.margin}
+    #     high volume {self.high_volume}
+    #     low volume {self.low_volume}
+    #     ROI: {self.ROI()}
+    #     item time: {datetime.utcfromtimestamp(self.time).strftime('%Y-%m-%d %H:%M:%S')}
+    #     '''
 
 
 
 with open('items2.txt', 'r') as f: #names and ids
     data_items = f.readlines()
-
 
 def update_data():
     data_ge = requests.get('https://prices.runescape.wiki/api/v1/osrs/latest') #newest prices
@@ -78,20 +73,13 @@ def update_data():
         data_ge_1hr1 = requests.get('https://prices.runescape.wiki/api/v1/osrs/1h')
         if data_ge_1hr1.status_code == 200:
             with open('ge1hr.json', 'w') as f:
-                json.dump(data_ge_1hr.json(), f)
+                json.dump(data_ge_1hr1.json(), f)
             data_ge_1hr = data_ge_1hr1.json()
 
 
     data_ge = list(data_ge.json().values())[0] #newest prices formated as a dictionary, removes timestamp and what not
     data_ge_1hr = list(data_ge_1hr.values())[0] #pices and volume over last hour
     return data_ge, data_ge_1hr
-
-
-
-def find_id(x : list) -> str:
-    no_comma = len(re.findall(pattern_id, x)[0])-1
-    return re.findall(pattern_id, x)[0][1:no_comma]
-
 
 
 def top20_margin(data_ge : dict, data_ge_1hr : dict) -> list:
@@ -106,6 +94,7 @@ def top20_margin(data_ge : dict, data_ge_1hr : dict) -> list:
     topmargins = []
     for items_ids, data in data_ge.items():
         try: #sometimes the data does not exist and returns as null
+        # what we already had
             topmargins.append({
                 'id' : items_ids,
                 'high' : data['high'], 
@@ -120,8 +109,6 @@ def top20_margin(data_ge : dict, data_ge_1hr : dict) -> list:
             continue
 
     topmargins.sort(reverse = True, key = lambda x: x['margin'])
-    topmargins = topmargins[:21]
-
     return topmargins[:21]
 
 
@@ -156,6 +143,7 @@ def match_id(list_of_data : list) -> list:
     Returns:
         [type]: list of item objects
     """
+    pattern_name = re.compile(r'\w+[a-zA-Z]') # pattern to find name
     newlist = []
     for i in data_items: #find the name of item ids
         for item in list_of_data:
@@ -172,18 +160,26 @@ def match_id(list_of_data : list) -> list:
     return newlist
 
 
-menu = '''
------------------
-0 - show menu again
-1 - high volume
-2 - high margin
-3 - refresh prices
-4 - quit
------------------
-'''
+def find_id(x : list) -> str:
+    pattern_id = re.compile(r' \d+,$') #pattern to find id
+    no_comma = len(re.findall(pattern_id, x)[0])-1
+    return re.findall(pattern_id, x)[0][1:no_comma]
+
+
+
 def interactive_menu():
     data_ge, data_ge_1hr = update_data()
+    menu = '''
+    -----------------
+    0 - show menu again
+    1 - high volume
+    2 - high margin
+    3 - refresh prices
+    4 - quit
+    -----------------
+    '''
     print(menu)
+    
     choice = ''
     while choice != '4':
         choice = input('pick a choice: ')

@@ -31,3 +31,8 @@ print(datetime.now())
 
 
 print(int(time.time()))
+
+
+data_ge_1hr = requests.get('https://prices.runescape.wiki/api/v1/osrs/1h')
+with open('ge1hr.json', 'w') as f:
+    json.dump(data_ge_1hr.json(), f)
