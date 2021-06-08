@@ -40,158 +40,155 @@ class Item:
         item time: {datetime.utcfromtimestamp(self.time).strftime('%Y-%m-%d %H:%M:%S')}
         '''
 
-    # def __str__(self):
-    #     return f''' 
-    #     item name: {self.item_name}
-    #     item id: {self.item_id}
-    #     item high price: {self.high_price}
-    #     item low price: {self.low_price}
-    #     margin: {self.margin}
-    #     high volume {self.high_volume}
-    #     low volume {self.low_volume}
-    #     ROI: {self.ROI()}
-    #     item time: {datetime.utcfromtimestamp(self.time).strftime('%Y-%m-%d %H:%M:%S')}
-    #     '''
 
-
-
-with open('items2.txt', 'r') as f: #names and ids
-    data_items = f.readlines()
-
-def update_data():
+def update_data() -> list:
     data_ge = requests.get('https://prices.runescape.wiki/api/v1/osrs/latest') #newest prices
+    data_ge_1hr = requests.get('https://prices.runescape.wiki/api/v1/osrs/1h') #1hr prices
+    item_data = requests.get('https://prices.runescape.wiki/api/v1/osrs/mapping') #all data
 
-    if data_ge.status_code != 200: #check if http response is aight
-        print(data_ge.status_code)
+    if data_ge.status_code != 200 and data_ge_1hr.status_code != 200 and item_data.status_code != 200: #check if http response is aight
+        print(data_ge.status_code, data_ge_1hr.status_code, item_data.status_code)
         print('http response was bad')
         sys.exit(0)
+    data_ge_1hr = data_ge_1hr.json()
+    item_data = item_data.json()
 
-    with open('ge1hr.json', 'r') as f:
-        data_ge_1hr = json.load(f)
-
-    if int(time.time()) - data_ge_1hr['timestamp'] > 3000: #suffecient time to update 1hr prices
-        data_ge_1hr1 = requests.get('https://prices.runescape.wiki/api/v1/osrs/1h')
-        if data_ge_1hr1.status_code == 200:
-            with open('ge1hr.json', 'w') as f:
-                json.dump(data_ge_1hr1.json(), f)
-            data_ge_1hr = data_ge_1hr1.json()
+     #newest prices formated as a dictionary, pices and volume over last hour, item names and info
+    return list(data_ge.json().values())[0], list(data_ge_1hr.values())[0], item_data
 
 
-    data_ge = list(data_ge.json().values())[0] #newest prices formated as a dictionary, removes timestamp and what not
-    data_ge_1hr = list(data_ge_1hr.values())[0] #pices and volume over last hour
-    return data_ge, data_ge_1hr
+def make_dict(data_ge : dict, data_ge_1hr : dict, data_items : dict) -> list:
+    all_items = []
 
-
-def top20_margin(data_ge : dict, data_ge_1hr : dict) -> list:
-    """20 items with the highest margin
-
-    Args:
-        topmargins (list, optional): [description]. Defaults to [].
-
-    Returns:
-        list: [list with dictionaries with the highest margin]
-    """
-    topmargins = []
-    for items_ids, data in data_ge.items():
-        try: #sometimes the data does not exist and returns as null
-        # what we already had
-            topmargins.append({
-                'id' : items_ids,
-                'high' : data['high'], 
-                'low' : data['low'],
-                'margin' : data['high'] - data['low'],
-                'time' : data['highTime'],
-                'High Price Volume' : data_ge_1hr[items_ids]['highPriceVolume'],
-                'Low Price Volume' : data_ge_1hr[items_ids]['lowPriceVolume']
-            })
-
-        except:
-            continue
-
-    topmargins.sort(reverse = True, key = lambda x: x['margin'])
-    return topmargins[:21]
-
-
-def top20Volume(data_ge : dict, data_ge_1hr : dict) -> list:
-    """loops through the items and sorts them based on volume returning an new shorter list
-    """ 
-    topvolume = []
-    for item_id, data in data_ge_1hr.items():
+    for item in data_items:
+        item_id = str(item['id'])
         try:
-            topvolume.append({
-                'id' : item_id,
-                'high' : data_ge[item_id]['high'],
-                'low' : data_ge[item_id]['low'],
-                'margin' : data_ge[item_id]['high'] - data_ge[item_id]['low'],
-                'time' : data_ge[item_id]['highTime'],
-                'High Price Volume' : data['highPriceVolume'],
-                'Low Price Volume' : data['lowPriceVolume']
+            all_items.append({
+            'name' : item['name'],
+            'id' : item_id,
+            'high' : data_ge[item_id]['high'], 
+            'low' : data_ge[item_id]['low'], 
+            'margin' : data_ge[item_id]['high'] - data_ge[item_id]['low'],
+            'time' : (data_ge[item_id]['highTime']+data_ge[item_id]['highTime'])/2,
+            'High Price Volume' : data_ge_1hr[item_id]['highPriceVolume'],
+            'Low Price Volume' : data_ge_1hr[item_id]['lowPriceVolume'],
+            'highalch' : item['highalch'],
+            'limit' : item['limit']
             })
         except:
             continue
-    topvolume.sort(reverse = True, key = lambda x : (['High Price Volume']+['Low Price Volume']))
-    return topvolume[:21]
+    return all_items
 
 
 
-def match_id(list_of_data : list) -> list:
-    """cartesian product then match if ID is the same so we find the name
+def top20_margin(all_items : list) -> list:
+    """
 
     Args:
-        list_of_data (list, optional): The top items with the highest margin or the highest volume. Defaults to [].
+        all_items (list): dict with all items
 
     Returns:
-        [type]: list of item objects
+        list: the items with the higest margin this hour
+    """
+    all_items.sort(reverse = True, key = lambda x: x['margin'])
+    return all_items[:21]
+
+
+
+def top20Volume(all_items : list) -> list:
+    """top 20 items this hour in terms of volume
+    """ 
+
+    all_items.sort(reverse = True, key = lambda x : (x['High Price Volume']+x['Low Price Volume']))
+    return all_items[:21]
+
+
+
+def highalchs(all_items : list, data_ge : list):
+    highalcs =[i for i in all_items if (i['highalch'] - i['High Price Volume'] - 5*data_ge['561']["high"]) > 0]
+    highalcs.sort(reverse = True, key = lambda x : x['limit'])
+    return highalcs[:21]
+
+
+
+
+
+def search_for_item(all_items : list, item : str) -> list:
+    item = [i for i in all_items if i['name'].upper()[:len(item)-3] == item.upper()[:len(item)-3]]
+    return item
+
+
+
+
+
+
+
+def create_item(chosen_items : list) -> list:
+    """
+    Args:
+        chosen_items (list): [the list of data]
+
+    Returns:
+        list: list of objects
     """
     pattern_name = re.compile(r'\w+[a-zA-Z]') # pattern to find name
     newlist = []
-    for i in data_items: #find the name of item ids
-        for item in list_of_data:
-            if int(item['id']) == int(find_id(i)):
-                item_data = Item(' '.join(re.findall(pattern_name, i)), 
-                item['id'], 
-                item['high'], 
-                item['low'], 
-                item['margin'],
-                item['High Price Volume'],
-                item['Low Price Volume'],
-                item['time'])
-                newlist.append(item_data)
+    for item in chosen_items: #find the name of item ids
+        newlist.append(
+        Item(
+        item['name'], 
+        item['id'], 
+        item['high'], 
+        item['low'], 
+        item['margin'],
+        item['High Price Volume'],
+        item['Low Price Volume'],
+        item['time']
+        ))
     return newlist
 
 
-def find_id(x : list) -> str:
-    pattern_id = re.compile(r' \d+,$') #pattern to find id
-    no_comma = len(re.findall(pattern_id, x)[0])-1
-    return re.findall(pattern_id, x)[0][1:no_comma]
+
+
 
 
 
 def interactive_menu():
-    data_ge, data_ge_1hr = update_data()
+    data_ge, data_ge_1hr, data_items  = update_data()
+    everything = make_dict(data_ge, data_ge_1hr, data_items)
     menu = '''
     -----------------
     0 - show menu again
     1 - high volume
     2 - high margin
     3 - refresh prices
-    4 - quit
+    4 - high alcs
+    5 - search
+    6 - quit
     -----------------
     '''
     print(menu)
     
     choice = ''
-    while choice != '4':
-        choice = input('pick a choice: ')
+    while choice != '6':
+        print('pick a choice, 0 to show menu again')
+        choice = input()
         if choice == '0':
             print(menu)
         elif choice == '1':
-            print(match_id(top20Volume(data_ge, data_ge_1hr)))
+            [print(i) for i in create_item(top20Volume(everything)) if i.ROI() > 0]
         elif choice == '2':
-            print(match_id(top20_margin(data_ge, data_ge_1hr)))
+            [print(i) for i in create_item(top20_margin(everything)) if i.ROI() > 0]
         elif choice == '3':
-            data_ge, data_ge_1hr = update_data()
+            data_ge, data_ge_1hr, data_items = update_data()
+            everything = make_dict(data_ge, data_ge_1hr, data_items)
         elif choice == '4':
+            print(highalchs(everything, data_ge))
+        elif choice == '5':
+            print('what item?')
+            search = input()
+            print(search_for_item(everything, search))
+        elif choice == '6':
             print('thanks for coming')
         else:
             print('inlvalid input try again \n')
@@ -199,3 +196,4 @@ def interactive_menu():
 
 if __name__ == '__main__':
     interactive_menu()
+

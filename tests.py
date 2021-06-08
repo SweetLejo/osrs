@@ -1,4 +1,4 @@
-import re, requests, json, time
+import requests, json, re, signal, sys, time
 from datetime import datetime
 
 pattern_id = re.compile(r' \d{1,9}') #pattern to find id
@@ -18,21 +18,18 @@ print(z)
 
 
 
-# data_ge_1hr = requests.get('https://prices.runescape.wiki/api/v1/osrs/1h')
+data_ge_1hr = requests.get('https://prices.runescape.wiki/api/v1/osrs/1h')
 
 
-# with open('ge1hr.json', 'w') as f:
-#     json.dump(data_ge_1hr.json(), f)
-
-
-
+with open('ge1hr.json', 'w') as f:
+    json.dump(data_ge_1hr.json(), f)
 
 print(datetime.now())
 
 
 print(int(time.time()))
 
+data = requests.get('https://prices.runescape.wiki/api/v1/osrs/mapping')
 
-data_ge_1hr = requests.get('https://prices.runescape.wiki/api/v1/osrs/1h')
-with open('ge1hr.json', 'w') as f:
-    json.dump(data_ge_1hr.json(), f)
+with open('item_data.json', 'w') as f:
+    json.dump(data.json(), f)
