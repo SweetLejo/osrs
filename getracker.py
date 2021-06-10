@@ -43,18 +43,37 @@ class Item:
 
 def update_data() -> list:
     data_ge = requests.get('https://prices.runescape.wiki/api/v1/osrs/latest') #newest prices
-    data_ge_1hr = requests.get('https://prices.runescape.wiki/api/v1/osrs/1h') #1hr prices
-    item_data = requests.get('https://prices.runescape.wiki/api/v1/osrs/mapping') #all data
 
-    if data_ge.status_code != 200 and data_ge_1hr.status_code != 200 and item_data.status_code != 200: #check if http response is aight
-        print(data_ge.status_code, data_ge_1hr.status_code, item_data.status_code)
+    if data_ge.status_code != 200: #check if http response is aight
+        print(data_ge.status_code)
         print('http response was bad')
         sys.exit(0)
+
+    with open('item_data.json', 'r') as f:
+        item_data = json.load(f)
+    
+    if time.time() - item_data[-1][1] > 2_600_000:
+        item_data = requests.get('https://prices.runescape.wiki/api/v1/osrs/mapping') #all data
+
+        with open('item_data.json', 'w') as f:
+            item_data2 = item_data.json()
+            item_data2.append(('time', time.time()))
+            json.dump(item_data2, f)
+        item_data = item_data.json() 
+
+
+    data_ge_1hr = requests.get('https://prices.runescape.wiki/api/v1/osrs/1h') #1hr prices
+
+    with open('item_data1h.json', 'w') as f:
+        data_ge_1hr2 = data_ge_1hr.json()
+        data_ge_1hr2['time'] = time.time()
+        json.dump(data_ge_1hr2, f)
+    
+    
     data_ge_1hr = data_ge_1hr.json()
-    item_data = item_data.json()
 
      #newest prices formated as a dictionary, pices and volume over last hour, item names and info
-    return list(data_ge.json().values())[0], list(data_ge_1hr.values())[0], item_data
+    return list(data_ge.json().values())[0], list(data_ge_1hr.values())[0], item_data[:-2]
 
 
 def make_dict(data_ge : dict, data_ge_1hr : dict, data_items : dict) -> list:
@@ -83,7 +102,6 @@ def make_dict(data_ge : dict, data_ge_1hr : dict, data_items : dict) -> list:
 
 def top20_margin(all_items : list) -> list:
     """
-
     Args:
         all_items (list): dict with all items
 
